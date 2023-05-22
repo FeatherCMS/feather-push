@@ -1,23 +1,28 @@
 import APNS
 import APNSCore
 import Foundation
+import Logging
 import NIOCore
 
 public struct FeatherAPNSClient {
 
     let client: APNSClient<JSONDecoder, JSONEncoder>
     let appBundleID: String
+    let logger: Logger?
 
     public init(
-        eventLoopGroupProvider: NIOEventLoopGroupProvider = .createNew,
+        eventLoopGroupProvider: NIOEventLoopGroupProvider,
         privateP8Key: String,
         keyIdentifier: String,
         teamIdentifier: String,
         appBundleID: String,
-        environment: String
+        environment: String,
+        logger: Logger? = nil
     ) throws {
 
         self.appBundleID = appBundleID
+        self.logger = logger
+
         var env: APNSEnvironment = .sandbox
         if environment != "sandbox" {
             env = .production
@@ -42,7 +47,7 @@ public struct FeatherAPNSClient {
     }
 
     public func sendOnePush(message: ApplePushMessage) async throws {
-        try await client.sendAlertNotification(
+        let response = try await client.sendAlertNotification(
             .init(
                 alert: message.createAlert(),
                 expiration: .immediately,
@@ -52,12 +57,15 @@ public struct FeatherAPNSClient {
             ),
             deviceToken: message.getToken()
         )
+
+        logger?.info("\(response.apnsID!)")
     }
 
     public func sendMorePush(messages: [ApplePushMessage]) async throws {
         let size = messages.count
         if size == 0 {
-            fatalError("[ApplePushMessage] size is empty")
+            logger?.error("[ApplePushMessage] size is empty")
+            return
         }
         for msg in messages {
             try await sendOnePush(message: msg)

@@ -1,6 +1,7 @@
 import AsyncHTTPClient
 import Foundation
 import JWTKit
+import Logging
 import NIOConcurrencyHelpers
 import NIOCore
 import NIOHTTP1
@@ -11,6 +12,7 @@ public struct FeatherFCMClient {
 
     var credentials: ServiceAccountCredentials
     let client: HTTPClient
+    let logger: Logger?
 
     private let defaultRequestHeaders: HTTPHeaders = {
         var headers = HTTPHeaders()
@@ -19,8 +21,9 @@ public struct FeatherFCMClient {
     }()
 
     public init?(
-        eventLoopGroupProvider: NIOEventLoopGroupProvider = .createNew,
-        credentialsData: Data
+        eventLoopGroupProvider: NIOEventLoopGroupProvider,
+        credentialsData: Data,
+        logger: Logger? = nil
     ) {
         guard
             let credentials = try? JSONDecoder().decode(
@@ -31,6 +34,7 @@ public struct FeatherFCMClient {
             return nil
         }
         self.credentials = credentials
+        self.logger = logger
 
         var httpClientConfiguration = HTTPClient.Configuration()
         httpClientConfiguration.tlsConfiguration =
@@ -54,7 +58,8 @@ public struct FeatherFCMClient {
     public func sendOnePush(fcmPushMessage: FCMPushMessage) async throws {
         let accessToken = try await getToken()
         if accessToken == nil {
-            fatalError("FCM AccessToken nil")
+            logger?.error("FCM AccessToken nil")
+            return
         }
 
         var headers = defaultRequestHeaders
@@ -79,17 +84,18 @@ public struct FeatherFCMClient {
             let pushResponse = byteBuffer.readString(
                 length: byteBuffer.readableBytes
             )
-            print(pushResponse!)
+            logger?.info("\(pushResponse!)")
         }
         else {
-            print("Send push error: " + response.status.description)
+            logger?.error("FCM send push error: \(response.status.description)")
         }
     }
 
     public func sendMorePush(fcmPushMessages: [FCMPushMessage]) async throws {
         let accessToken = try await getToken()
         if accessToken == nil {
-            fatalError("FCM AccessToken nil")
+            logger?.error("FCM AccessToken nil")
+            return
         }
 
         let size = fcmPushMessages.count
@@ -138,7 +144,7 @@ public struct FeatherFCMClient {
                 httpClientRequest,
                 deadline: .distantFuture
             )
-            print(response.status)
+            logger?.info("\(response.status)")
         }
     }
 
@@ -187,7 +193,7 @@ public struct FeatherFCMClient {
             return tokenResponse.accessToken
         }
         else {
-            print("Token error: " + response.status.description)
+            logger?.error("FCM get token error: \(response.status.description)")
         }
         return nil
     }

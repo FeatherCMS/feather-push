@@ -1,27 +1,37 @@
 import FeatherAPNS
 import FeatherFCM
+import Logging
+import NIOCore
 
 public struct FeatherPush {
 
     var featherFCMClient: FeatherFCMClient? = nil
     var featherAPNSClient: FeatherAPNSClient? = nil
+    let logger: Logger?
 
     public init(
+        eventLoopGroupProvider: NIOEventLoopGroupProvider,
         featherFCMConfig: FeatherFCMConfig? = nil,
-        featherAPNSConfig: FeatherAPNSConfig? = nil
+        featherAPNSConfig: FeatherAPNSConfig? = nil,
+        logger: Logger? = nil
     ) throws {
+        self.logger = logger
         if let fcmConfig = featherFCMConfig {
             featherFCMClient = FeatherFCMClient(
-                credentialsData: fcmConfig.credentials
+                eventLoopGroupProvider: eventLoopGroupProvider,
+                credentialsData: fcmConfig.credentials,
+                logger: logger
             )
         }
         if let apnsConfig = featherAPNSConfig {
             featherAPNSClient = try FeatherAPNSClient(
+                eventLoopGroupProvider: eventLoopGroupProvider,
                 privateP8Key: apnsConfig.privateP8Key,
                 keyIdentifier: apnsConfig.keyIdentifier,
                 teamIdentifier: apnsConfig.teamIdentifier,
                 appBundleID: apnsConfig.appBundleID,
-                environment: apnsConfig.environment
+                environment: apnsConfig.environment,
+                logger: logger
             )
         }
     }
@@ -30,10 +40,12 @@ public struct FeatherPush {
         async throws
     {
         if featherFCMClient == nil && featherAPNSClient == nil {
-            fatalError("FeatherPush: no providers initialized")
+            logger?.error("FeatherPush: no providers initialized")
+            return
         }
         if recipients.isEmpty {
-            fatalError("FeatherPush: no recipients")
+            logger?.error("FeatherPush: no recipients")
+            return
         }
 
         let fcmRecipients = recipients.filter { $0.platform == .android }

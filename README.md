@@ -24,6 +24,8 @@ Simple usage
 
 ```swift
 import FeatherPush
+import Logging
+import NIOCore
 
 let path = URL(fileURLWithPath: #filePath).pathComponents
     .joined(separator: "/")
@@ -33,7 +35,13 @@ let credsUrl = URL(fileURLWithPath: String(path))
 let data = try Data(contentsOf: credsUrl)
 
 let featherFCMConfig = FeatherFCMConfig(credentialsData: data)
-let featherPush = try FeatherPush(featherFCMConfig: featherFCMConfig)
+let logger = Logger(label: "push_test")
+let eventLoopGroupProvider: NIOEventLoopGroupProvider = .createNew
+let featherPush = try FeatherPush(
+    eventLoopGroupProvider: eventLoopGroupProvider,
+    featherFCMConfig: featherFCMConfig,
+    logger: logger
+)
 
 let token = "#add an Android FCM device token here#"
 let pushRecipient = PushRecipient(token: token, platform: .android)
@@ -57,6 +65,8 @@ Simple usage
 
 ```swift
 import FeatherPush
+import Logging
+import NIOCore
 
 let appBundleID = "com.your.app.bundle.id"
 let privateP8Key = """
@@ -73,7 +83,13 @@ let featherAPNSConfig = FeatherAPNSConfig(
     teamIdentifier: teamIdentifier,
     appBundleID: appBundleID
 )
-let featherPush = try FeatherPush(featherAPNSConfig: featherAPNSConfig)
+let logger = Logger(label: "push_test")
+let eventLoopGroupProvider: NIOEventLoopGroupProvider = .createNew
+let featherPush = try FeatherPush(
+    eventLoopGroupProvider: eventLoopGroupProvider,
+    featherAPNSConfig: featherAPNSConfig,
+    logger: logger
+)
 
 let token = "#add an Apple APNS device token here#"
 let pushRecipient = PushRecipient(token: token, platform: .ios)
